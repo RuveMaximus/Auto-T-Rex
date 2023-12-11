@@ -1,17 +1,13 @@
-import time
-import pyautogui
 import logging
 
-import config
+import pyautogui
 
-from bot.keyboard import Keyboard, Arrow
+from bot import Dino
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
-kb = Keyboard()
+dino = Dino().get_position()
 
-# for focus right window in my awesome i3wm!
-pyautogui.hotkey('win', 'l') 
-
-
-kb.press(Arrow.UP).pause(config.TIME_TO_REACH_HIGHEST_POINT).hold(Arrow.DOWN, hold_for=config.TIME_TO_REACH_HIGHEST_POINT)
+dino.screenshot()
+# for focus right window in my awesome i3!
+pyautogui.hotkey('win', 'l')
