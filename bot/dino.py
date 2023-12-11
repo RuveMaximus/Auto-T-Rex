@@ -1,38 +1,56 @@
+import cv2
 import pyautogui
+import mss
+import mss.tools
 import logging
+import numpy
+
+import config
 from .keyboard import Keyboard, Arrow
 from core.point import Point
+from core.types import Seconds
 from config import (
     SCREENSHOT_DIR,
-    BASE_DIR,
     TIME_TO_REACH_HIGHEST_POINT as TIME_TO_UP,
     FIELD_HEIGHT,
-    FIELD_WIDTH,
+    FIELD_VIEW_WIDTH,
+    ENTITIES_DIR,
 )
 
 
 class Dino:
     def __init__(self):
-        self.position = None
         self.keyboard = Keyboard()
-        self.logger = logging.getLogger(__name__)
+        self.speed = 1.0
+        self.__position = Point(6296, 523)
+        self.__logger = logging.getLogger(__name__)
 
     def get_position(self) -> "Dino":
-        pos = pyautogui.locateOnScreen(str(BASE_DIR / 'images/dino.png'))
-        self.position = Point(int(pos.left), int(pos.top))
-        self.logger.debug(f'Dino found at position: {self.position}')
+        pos = pyautogui.locateOnScreen(str(ENTITIES_DIR / 'dino.png'))
+        self.__position = Point(int(pos.left), int(pos.top))
+        self.__logger.debug(f'Dino found at position: {self.__position}')
 
         return self
 
-    def jump(self):
-        self.keyboard.press(Arrow.UP).pause(TIME_TO_UP).hold(Arrow.DOWN, hold_for=TIME_TO_UP)
+    def __calc_field_view_width(self) -> int:
+        return int(FIELD_VIEW_WIDTH * self.speed)
 
-    def duck(self):
-        self.keyboard.hold(Arrow.DOWN, hold_for=TIME_TO_UP)
+    def jump(self, switch_direction_pause: Seconds = TIME_TO_UP):
+        self.keyboard.press(Arrow.UP).pause(switch_direction_pause).hold(Arrow.DOWN, hold_for=TIME_TO_UP)
+
+    def duck(self, hold_for):
+        self.keyboard.hold(Arrow.DOWN, hold_for=hold_for)
+
+    def region(self):
+        return self.__position.x, self.__position.y, int(FIELD_VIEW_WIDTH * self.speed), FIELD_HEIGHT
 
     def screenshot(self):
-        im = pyautogui.screenshot(region=(
-            self.position.x, self.position.y,
-            FIELD_WIDTH, FIELD_HEIGHT
-        ))
-        im.save(SCREENSHOT_DIR / 'dino.png')
+        with mss.mss() as sct:
+            monitor = dict(
+                top=self.__position.y,
+                left=self.__position.x + config.FIELD_VIEW_OFFSET,
+                width=self.__calc_field_view_width(),
+                height=FIELD_HEIGHT
+            )
+            im = numpy.array(sct.grab(monitor))
+            return cv2.cvtColor(im, cv2.COLOR_BGRA2GRAY)
