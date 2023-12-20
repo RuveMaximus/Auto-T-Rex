@@ -1,50 +1,61 @@
 import logging
 import time
 import pyautogui
-import cv2
+import os
+from threading import Thread
+from config import (
+    ENTITIES_DIR,
+    GAME_LOOP_DELAY
+)
+from bot import Dino, Entity
 
-import config
-from bot import Dino
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 # for focus right window in my awesome i3!
-pyautogui.hotkey('win', 'l', interval=0.4)
+pyautogui.hotkey('win', 'l', interval=0.1)
+dino = Dino()
 pyautogui.press('space')
-dino = Dino().get_position()
-
-small_cactus_2 = cv2.imread('./entities/small_cactus_2.png', cv2.IMREAD_GRAYSCALE)
-small_cactus_1 = cv2.imread('./entities/small_cactus_1.png', cv2.IMREAD_GRAYSCALE)
-big_cactus_1 = cv2.imread('./entities/big_cactus_1.png', cv2.IMREAD_GRAYSCALE)
-pterodactil = cv2.imread('./entities/pterodactil.png', cv2.IMREAD_GRAYSCALE)
-pterodactil_down = cv2.imread('./entities/pterodactil_down.png', cv2.IMREAD_GRAYSCALE)
 
 
-def match(image, template):
-    res = cv2.matchTemplate(image, template, cv2.TM_CCOEFF_NORMED)
-    _, max_val, _, max_loc = cv2.minMaxLoc(res)
-    return max_val > 0.8
+entities = [
+    Entity(ENTITIES_DIR / 'small_cactus_2.png', lambda: dino.jump(.1), '2 Small'),
+    Entity(ENTITIES_DIR / 'small_cactus_1.png', lambda: dino.jump(.1), '1 Small'),
+    Entity(ENTITIES_DIR / 'big_cactus_1.png', lambda: dino.jump(.15), '1 Big'),
+    Entity(ENTITIES_DIR / 'bird.png', lambda: dino.jump(.15), 'Bird'),
+]
 
 
-print('started')
+def accelerate_speed():
+    while True:
+        print(f'Current speed: {dino.speed:0.3f}       ', end='\r')
+        time.sleep(GAME_LOOP_DELAY)
+        dino.speed_up()
 
-while True:
-    field_img = dino.screenshot()
-    if match(field_img, big_cactus_1):
-        print('bc1')
-        dino.jump(0.15)
-    elif match(field_img, small_cactus_2):
-        print('sc2')
-        dino.jump(0.15)
-    elif match(field_img, small_cactus_1):
-        print('sc1')
-        dino.jump(0.1)
-    elif match(field_img, pterodactil):
-        print('pterodactil in sky')
-        dino.duck(0.5)
-    elif match(field_img, pterodactil_down):
-        print('pterodactil on floor')
-        dino.jump(0.1)
-    dino.speed += 0.0042 * int(dino.speed < 3.25)
-    print(dino.speed)
-    time.sleep(config.GAME_LOOP_DELAY)
+
+def find_entity():
+    while True:
+        field = dino.watch_ahead()
+
+        for entity in entities:
+            if entity in field:
+                entity.action()
+                break
+
+        time.sleep(GAME_LOOP_DELAY)
+
+
+
+speed_control_thread = Thread(target=accelerate_speed)
+entity_finder_thread = Thread(target=find_entity)
+
+speed_control_thread.start()
+entity_finder_thread.start()
+logging.info('Dino bot started!')
+
+try: 
+    entity_finder_thread.join()
+except KeyboardInterrupt:
+    print('\nStopped by keyboard')
+    os._exit(0)
+

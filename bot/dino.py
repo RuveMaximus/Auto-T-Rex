@@ -4,13 +4,13 @@ import mss
 import mss.tools
 import logging
 import numpy
+from .field import Field
 
 import config
 from .keyboard import Keyboard, Arrow
 from core.point import Point
 from core.types import Seconds
 from config import (
-    SCREENSHOT_DIR,
     TIME_TO_REACH_HIGHEST_POINT as TIME_TO_UP,
     FIELD_HEIGHT,
     FIELD_VIEW_WIDTH,
@@ -22,11 +22,11 @@ class Dino:
     def __init__(self):
         self.keyboard = Keyboard()
         self.speed = 1.0
-        self.__position = Point(6296, 523)
+        self.__position = Point(1139, 348)
         self.__logger = logging.getLogger(__name__)
 
     def get_position(self) -> "Dino":
-        pos = pyautogui.locateOnScreen(str(ENTITIES_DIR / 'dino.png'))
+        pos = self.__position or pyautogui.locateOnScreen(str(ENTITIES_DIR / 'dino.png'))
         self.__position = Point(int(pos.left), int(pos.top))
         self.__logger.debug(f'Dino found at position: {self.__position}')
 
@@ -44,7 +44,7 @@ class Dino:
     def region(self):
         return self.__position.x, self.__position.y, int(FIELD_VIEW_WIDTH * self.speed), FIELD_HEIGHT
 
-    def screenshot(self):
+    def watch_ahead(self) -> Field:
         with mss.mss() as sct:
             monitor = dict(
                 top=self.__position.y,
@@ -53,4 +53,8 @@ class Dino:
                 height=FIELD_HEIGHT
             )
             im = numpy.array(sct.grab(monitor))
-            return cv2.cvtColor(im, cv2.COLOR_BGRA2GRAY)
+            return Field(cv2.cvtColor(im, cv2.COLOR_BGRA2GRAY))
+    
+
+    def speed_up(self): 
+        self.speed += config.DINO_SPEED_ACCELERATION * int(self.speed < config.DINO_SPEED_LIMIT)
